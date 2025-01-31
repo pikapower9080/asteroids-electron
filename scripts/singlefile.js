@@ -103,7 +103,7 @@ esbuild.build({
 
 					dom.window.document.body.appendChild(dom.window.document.createElement('script')).textContent = js;
 					dom.window.document.head.appendChild(dom.window.document.createElement('style')).textContent = css;
-					fs.writeFileSync('dist/singlefile.html', dom.serialize());
+					fs.writeFileSync('app/singlefile.html', dom.serialize());
 				})
 			}
 		}
