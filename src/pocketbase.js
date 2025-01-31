@@ -17,6 +17,7 @@ if (pb.authStore.model) {
 }
 
 export async function postScore(score, time, dev, version) {
+	if (!window.ENABLE_NETWORKING) return;
 	if (cheated) return;
 	try {
 		return (await pb.collection("scores").create({
@@ -33,6 +34,7 @@ export async function postScore(score, time, dev, version) {
 }
 
 export async function updateStats({ score, level, kills, time }) {
+	if (!window.ENABLE_NETWORKING) return;
 	try {
 		return user = await pb.collection("users").update(user.id, {
 			"deaths+": 1,
@@ -48,6 +50,7 @@ export async function updateStats({ score, level, kills, time }) {
 }
 
 export async function postFeed(event) {
+	if (!window.ENABLE_NETWORKING) return;
 	if (!settings.sendFeedEvents) return;
 	if (cheated) return;
 	try {
@@ -65,6 +68,7 @@ export async function postFeed(event) {
 let feedConnected = false
 Toastify.setOption("position", "bottom-left")
 export async function subscribeToFeed() {
+	if (!window.ENABLE_NETWORKING) return;
 	if (feedConnected) return;
 	pb.collection('feed').subscribe('*', function (e) {
 		if (e.action == "create" && e.record.type == "death" && settings.showFeed) {
@@ -78,10 +82,12 @@ export async function subscribeToFeed() {
 }
 
 export async function getUsers() {
+	if (!window.ENABLE_NETWORKING) return;
 	return await pb.collection("users").getFullList({});
 }
 
 export async function getScores(page = 1, sort = "-score") {
+	if (!window.ENABLE_NETWORKING) return;
 	const scoresPerPage = 10;
 
 	const scores = await pb.collection("scores").getList(page, scoresPerPage, { expand: "user", sort, filter: `dev=${devMode}` });
@@ -90,6 +96,7 @@ export async function getScores(page = 1, sort = "-score") {
 }
 
 export async function signIn() {
+	if (!window.ENABLE_NETWORKING) return;
 	let username = await getUsername("Enter a username");
 	if (!username) return;
 	let users = await getUsers();
@@ -122,6 +129,7 @@ export async function signIn() {
 }
 
 export async function signInWithGoogle() {
+	if (!window.ENABLE_NETWORKING) return;
 	const authData = await pb.collection('users').authWithOAuth2({ provider: 'google' });
 }
 
@@ -164,6 +172,7 @@ export async function getPassword(prompt) {
 }
 
 export function signOut() {
+	if (!window.ENABLE_NETWORKING) return;
 	pb.authStore.clear();
 	signedIn = false;
 	user = null;

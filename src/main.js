@@ -717,124 +717,126 @@ async function die(silent) {
 	}
 
 	document.getElementById("score").innerText = player.score;
-	document.getElementById("scores").innerHTML = "<p> <b> Loading... </b> </p>";
-	document.getElementById("stats").innerHTML = "<p> <b> Loading... </b> </p>";
-	if (signedIn) {
-		document.getElementById("signInDiv").innerHTML = `<p> <b> Signed in as ${xssFilters.inHTMLData(user.name)} </b> </p> <button id="signOutBtn"> Sign out </button>`;
-		document.getElementById("signOutBtn").addEventListener("mouseenter", () => playSound("hover"));
-		setTimeout(() => {
-			document.getElementById("signOutBtn").addEventListener("click", () => {
-				signOut();
-				die(true);
-			});
-		}, 100);
-		if (!posted) {
-			let promises = [];
-			document.getElementById("score-not-submitted").classList.toggle("no-display", true)
-
-			promises.push(postFeed({
-				type: "death",
-				data: {
-					score: player.score,
-					time: Math.round(time),
-					dev: devMode
-				},
-				user: user.id
-			}));
-
-			if (player.score > 150 && time > 10 && settingsStore.get("submitScores", true)) {
-				promises.push(postScore(player.score, Math.round(time), devMode, version));
-			} else if (player.score <= 150 || time <= 10) {
-				document.getElementById("score-not-submitted").classList.toggle("no-display", false)
-				document.getElementById("score-not-submitted").innerText = "Your score was not submitted because it was too low"
-			} else {
-				document.getElementById("score-not-submitted").classList.toggle("no-display", false)
-				document.getElementById("score-not-submitted").innerText = "Score submission is disabled"
-			}
-
-			if (!devMode) promises.push(updateStats({ score: player.score, level: player.level, kills: player.kills, time: Math.floor(time) }));
-
-			const results = await Promise.all(promises);
-			if (results[1]) scoreRecordId = results[1].id;
-			posted = true;
-		}
-
-		document.getElementById("stats").innerHTML = `
-			<p> <strong> <!--<i class="fa-regular fa-burst fa-fw"></i>--> Total Deaths: </strong> ${user.deaths.toLocaleString()} </p>
-			<p> <strong> <!--<i class="fa-regular fa-star fa-fw"></i>--> Total score: </strong> ${user.score.toLocaleString()} </p>
-			<p> <strong> <!--<i class="fa-regular fa-up" fa-fw></i>--> Total levelups: </strong> ${user.levelups.toLocaleString()} </p>
-			<p> <strong> <!--<i class="fa-regular fa-skull fa-fw"></i>--> Total kills: </strong> ${user.kills.toLocaleString()} </p>
-			<p> <strong> <!--<i class="fa-regular fa-ranking-star fa-fw"></i>--> Highest score: </strong> ${user.highscore.toLocaleString()} </p>
-			<p> <strong> <!--<i class="fa-regular fa-clock-rotate-left fa-fw"></i>--> Longest run: </strong> ${formatTime(user.highestTime)} </p>
-		`;
-	} else {
-		document.getElementById("signInDiv").innerHTML = `<p><b>Sign in to submit your score to the leaderboard</b></p><button id="signInBtn">Sign in</button><!-- <button id="signInWithGoogleButton"> Sign in with Google </button> -->`;
-		document.getElementById("stats").innerHTML = "<p><b>Sign in to see your stats</b></p>";
-		setTimeout(() => {
-			document.getElementById("signInBtn").addEventListener("click", async () => {
-				let res = await signIn();
-				if (res) {
+	if (window.ENABLE_NETWORKING) {
+		document.getElementById("scores").innerHTML = "<p> <b> Loading... </b> </p>";
+		document.getElementById("stats").innerHTML = "<p> <b> Loading... </b> </p>";
+		if (signedIn) {
+			document.getElementById("signInDiv").innerHTML = `<p> <b> Signed in as ${xssFilters.inHTMLData(user.name)} </b> </p> <button id="signOutBtn"> Sign out </button>`;
+			document.getElementById("signOutBtn").addEventListener("mouseenter", () => playSound("hover"));
+			setTimeout(() => {
+				document.getElementById("signOutBtn").addEventListener("click", () => {
+					signOut();
 					die(true);
+				});
+			}, 100);
+			if (!posted) {
+				let promises = [];
+				document.getElementById("score-not-submitted").classList.toggle("no-display", true)
+	
+				promises.push(postFeed({
+					type: "death",
+					data: {
+						score: player.score,
+						time: Math.round(time),
+						dev: devMode
+					},
+					user: user.id
+				}));
+	
+				if (player.score > 150 && time > 10 && settingsStore.get("submitScores", true)) {
+					promises.push(postScore(player.score, Math.round(time), devMode, version));
+				} else if (player.score <= 150 || time <= 10) {
+					document.getElementById("score-not-submitted").classList.toggle("no-display", false)
+					document.getElementById("score-not-submitted").innerText = "Your score was not submitted because it was too low"
 				} else {
-					document.getElementById("signInDiv").querySelector("b").innerText = "Sign in failed";
+					document.getElementById("score-not-submitted").classList.toggle("no-display", false)
+					document.getElementById("score-not-submitted").innerText = "Score submission is disabled"
 				}
-			});
-			// document.getElementById("signInWithGoogleButton").addEventListener("click", async () => await signInWithGoogle());
-		}, 100);
-		document.getElementById("signInBtn").addEventListener("mouseenter", () => playSound("hover"));
-	}
-
-	let page = 1;
-	const scores = await getScores(page);
-
-	const scoresContainer = document.getElementById("scores");
-	scoresContainer.innerHTML = "";
-
-	const appendScore = (score, index, offset = "") => {
-		const scoreContainer = document.createElement("p");
-		const scoreIndex = document.createTextNode(`${index + 1 + offset} `);
-		const scoreAuthorName = document.createElement("b");
-
-		scoreAuthorName.textContent = xssFilters.inHTMLData(score.expand.user.name);
-
-		const scoreText = document.createTextNode(` - ${score.score} (${score.time > 0 ? formatTime(score.time) : "no time"})`);
-
-		if (score.version) scoreContainer.setAttribute("title", `Version: ${score.version}`);
-		if (scoreRecordId == score.id) scoreContainer.classList.add("highlight");
-
-		if (score.runData) {
-			scoreContainer.style.cursor = "pointer";
-			scoreContainer.addEventListener("click", () => {
-				showRunInfo(score);
-			})
+	
+				if (!devMode) promises.push(updateStats({ score: player.score, level: player.level, kills: player.kills, time: Math.floor(time) }));
+	
+				const results = await Promise.all(promises);
+				if (results[1]) scoreRecordId = results[1].id;
+				posted = true;
+			}
+	
+			document.getElementById("stats").innerHTML = `
+				<p> <strong> <!--<i class="fa-regular fa-burst fa-fw"></i>--> Total Deaths: </strong> ${user.deaths.toLocaleString()} </p>
+				<p> <strong> <!--<i class="fa-regular fa-star fa-fw"></i>--> Total score: </strong> ${user.score.toLocaleString()} </p>
+				<p> <strong> <!--<i class="fa-regular fa-up" fa-fw></i>--> Total levelups: </strong> ${user.levelups.toLocaleString()} </p>
+				<p> <strong> <!--<i class="fa-regular fa-skull fa-fw"></i>--> Total kills: </strong> ${user.kills.toLocaleString()} </p>
+				<p> <strong> <!--<i class="fa-regular fa-ranking-star fa-fw"></i>--> Highest score: </strong> ${user.highscore.toLocaleString()} </p>
+				<p> <strong> <!--<i class="fa-regular fa-clock-rotate-left fa-fw"></i>--> Longest run: </strong> ${formatTime(user.highestTime)} </p>
+			`;
+		} else {
+			document.getElementById("signInDiv").innerHTML = `<p><b>Sign in to submit your score to the leaderboard</b></p><button id="signInBtn">Sign in</button><!-- <button id="signInWithGoogleButton"> Sign in with Google </button> -->`;
+			document.getElementById("stats").innerHTML = "<p><b>Sign in to see your stats</b></p>";
+			setTimeout(() => {
+				document.getElementById("signInBtn").addEventListener("click", async () => {
+					let res = await signIn();
+					if (res) {
+						die(true);
+					} else {
+						document.getElementById("signInDiv").querySelector("b").innerText = "Sign in failed";
+					}
+				});
+				// document.getElementById("signInWithGoogleButton").addEventListener("click", async () => await signInWithGoogle());
+			}, 100);
+			document.getElementById("signInBtn").addEventListener("mouseenter", () => playSound("hover"));
 		}
 
-		scoreContainer.append(scoreIndex, scoreAuthorName, scoreText);
-		scoresContainer.appendChild(scoreContainer);
-	}
+		let page = 1;
+		const scores = await getScores(page);
 
-	scores.forEach((score, index) => appendScore(score, index));
+		const scoresContainer = document.getElementById("scores");
+		scoresContainer.innerHTML = "";
 
-	let loadingScores = false;
-	const gameOverElement = document.getElementById("gameOver");
+		const appendScore = (score, index, offset = "") => {
+			const scoreContainer = document.createElement("p");
+			const scoreIndex = document.createTextNode(`${index + 1 + offset} `);
+			const scoreAuthorName = document.createElement("b");
 
-	const loadMoreScores = async () => {
-		if (!loadingScores && gameOverElement.scrollTop + gameOverElement.clientHeight >= gameOverElement.scrollHeight - 10) {
-			loadingScores = true;
-			page++;
+			scoreAuthorName.textContent = xssFilters.inHTMLData(score.expand.user.name);
 
-			const newScores = await getScores(page);
-			if (newScores.length > 0) {
-				newScores.forEach((score, index) => appendScore(score, index, (page - 1) * 10));
-			} else {
-				gameOverElement.removeEventListener("scroll", loadMoreScores);
+			const scoreText = document.createTextNode(` - ${score.score} (${score.time > 0 ? formatTime(score.time) : "no time"})`);
+
+			if (score.version) scoreContainer.setAttribute("title", `Version: ${score.version}`);
+			if (scoreRecordId == score.id) scoreContainer.classList.add("highlight");
+
+			if (score.runData) {
+				scoreContainer.style.cursor = "pointer";
+				scoreContainer.addEventListener("click", () => {
+					showRunInfo(score);
+				})
 			}
 
-			loadingScores = false;
+			scoreContainer.append(scoreIndex, scoreAuthorName, scoreText);
+			scoresContainer.appendChild(scoreContainer);
 		}
-	}
 
-	gameOverElement.addEventListener("scroll", loadMoreScores);
+		scores.forEach((score, index) => appendScore(score, index));
+
+		let loadingScores = false;
+		const gameOverElement = document.getElementById("gameOver");
+
+		const loadMoreScores = async () => {
+			if (!loadingScores && gameOverElement.scrollTop + gameOverElement.clientHeight >= gameOverElement.scrollHeight - 10) {
+				loadingScores = true;
+				page++;
+
+				const newScores = await getScores(page);
+				if (newScores.length > 0) {
+					newScores.forEach((score, index) => appendScore(score, index, (page - 1) * 10));
+				} else {
+					gameOverElement.removeEventListener("scroll", loadMoreScores);
+				}
+
+				loadingScores = false;
+			}
+		}
+
+		gameOverElement.addEventListener("scroll", loadMoreScores);
+	}
 }
 
 document.getElementById("viewRunInfo").addEventListener("click", () => {

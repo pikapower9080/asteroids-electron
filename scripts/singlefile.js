@@ -94,11 +94,11 @@ esbuild.build({
 						img.src = `data:${mime};base64,${base64}`;
 					})
 
-					dom.window.document.querySelector("#start").disabled = true;
-					dom.window.document.body.appendChild(dom.window.document.createElement('script')).textContent = contentScriptText.replace('__ENV__', JSON.stringify({ ALLOW_SNAPSHOT: process.env.ALLOW_SNAPSHOT, ENABLE_EXTERNAL_LINKS: process.env.ENABLE_EXTERNAL_LINKS }));
-
 					dom.window.document.body.appendChild(dom.window.document.createElement('script')).textContent = js;
 					dom.window.document.head.appendChild(dom.window.document.createElement('style')).textContent = css;
+
+					dom.window.document.body.appendChild(dom.window.document.createElement('script')).textContent = contentScriptText.replace('__ENV__', JSON.stringify({ ALLOW_SNAPSHOT: process.env.ALLOW_SNAPSHOT, ENABLE_EXTERNAL_LINKS: process.env.ENABLE_EXTERNAL_LINKS, ENABLE_NETWORKING: process.env.ENABLE_NETWORKING }));
+
 					fs.writeFileSync('app/singlefile.html', dom.serialize());
 				})
 			}
