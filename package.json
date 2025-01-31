@@ -1,7 +1,8 @@
 {
-	"name": "asteroids-v2",
-	"version": "0.4.0",
-	"description": "Asteroids but newer",
+	"name": "asteroids-electron",
+	"productName": "Asteroids",
+	"version": "0.4.15",
+	"description": "An electron build of asteroids-v2",
 	"main": "app/main.js",
 	"scripts": {
 		"build": "bun run singlefile && bun run dist",

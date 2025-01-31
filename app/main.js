@@ -5,7 +5,14 @@ const path = require('node:path')
 function createWindow () {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
-    fullscreen: true
+    fullscreen: true,
+    width: 1920,
+    height: 1080,
+    minWidth: 800,
+    minHeight: 600,
+    webPreferences: {
+      devTools: false
+    },
   })
 
   // and load the index.html of the app.
