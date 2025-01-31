@@ -4,12 +4,12 @@
 	"description": "Asteroids but newer",
 	"main": "app/main.js",
 	"scripts": {
-		"build": "bun run scripts/build.js",
+		"build": "bun run singlefile && bun run dist",
 		"dev": "bun run scripts/dev.js",
 		"clean": "bun run scripts/clean.js",
 		"singlefile": "bun run scripts/singlefile.js",
 		"start": "electron .",
-		"app:dist": "electron-builder"
+		"dist": "electron-builder"
 	},
 	"repository": {
 		"type": "git",
