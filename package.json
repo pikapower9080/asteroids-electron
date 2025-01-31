@@ -10,7 +10,12 @@
 		"clean": "bun run scripts/clean.js",
 		"singlefile": "bun run scripts/singlefile.js",
 		"start": "electron .",
-		"dist": "electron-builder"
+		"dist": "electron-builder",
+		"build:windows": "electron-builder --win --x64",
+		"build:mac": "electron-builder --mac --universal",
+		"build:linux": "electron-builder --linux",
+		"build:linux:arm64": "electron-builder --linux --arm64",
+		"build:all": "electron-builder -wml"
 	},
 	"repository": {
 		"type": "git",
