@@ -5,13 +5,13 @@ const path = require('node:path')
 function createWindow () {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
-    fullscreen: true,
+    fullscreen: !(process.env.NODE_ENV === 'development'),
     width: 1920,
     height: 1080,
     minWidth: 800,
     minHeight: 600,
     webPreferences: {
-      devTools: false
+      devTools: (process.env.NODE_ENV === 'development'),
     }
   })
 
@@ -19,7 +19,9 @@ function createWindow () {
   mainWindow.loadFile('app/singlefile.html')
 
   // Open the DevTools.
-  // mainWindow.webContents.openDevTools()
+  if (process.env.NODE_ENV === 'development') {
+    mainWindow.webContents.openDevTools()
+  }
 }
 
 // This method will be called when Electron has finished
