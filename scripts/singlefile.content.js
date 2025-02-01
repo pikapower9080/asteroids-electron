@@ -25,3 +25,7 @@ if (env.ENABLE_NETWORKING !== "true") {
 	document.querySelector("#gameOver > div > h2").style.marginTop = 0
 	document.querySelector("#gameOver > div > h2").style.marginBottom = '11.5px'
 }
+
+if (window.onEnvReady) {
+	window.onEnvReady();
+}

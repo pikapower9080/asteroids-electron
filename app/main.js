@@ -11,18 +11,34 @@ rpc.on('ready', () => {
   console.log("Connected to Discord")
 })
 
+let lastPresence = null
+
 ipcMain.on('message-from-renderer', async (event, data) => {
+  const rawData = data
   data = JSON.parse(data)
   if (data.type && data.type == "updatePresence") {
+    if (lastPresence == rawData) return
+    lastPresence = rawData
     if (!setupPresence) {
-      await rpc.connect()
-      setupPresence = true
+      try {
+        await rpc.connect()
+        setupPresence = true
+      } catch(error) {
+        console.warn("Could not connect to Discord")
+        return
+      }
     }
     const presence = new Presence()
     if (data.state) presence.setState(data.state)
     if (data.details) presence.setDetails(data.details)
     if (data.startTimestamp) presence.setStartTimestamp(data.startTimestamp)
-    rpc.setActivity(presence)
+    if (rpc.connected) {
+      rpc.setActivity(presence)
+    }
+  } else if (data.type && data.type == "stopPresence") {
+    rpc.disconnect()
+    setupPresence = false
+    console.log("Disconnected from Discord")
   } else if (data.type && data.type == "quit") {
     app.quit()
   }

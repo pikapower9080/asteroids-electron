@@ -37,7 +37,8 @@ export const settingsStore = new EasyStorage({
 		showFeed: true,
 		submitScores: true,
 		reticle: "0",
-		rumbleEnabled: true
+		rumbleEnabled: true,
+		discordRPC: true
 	},
 	migration: {
 		enabled: true,
@@ -76,7 +77,7 @@ export var clampTime,
 	started = false,
 	starCol = 100,
 	showHud = true,
-	editableSettings = {},
+	editableSettings = [],
 	cheated,
 	particles,
 	iconFont = "Font Awesome 6 Pro",
@@ -200,6 +201,7 @@ const sketchFunc = (sk) => {
 		{ name: "Show Feed", var: "showFeed", type: "checkbox" },
 		{ name: "Mute", var: "isMuted", type: "checkbox" },
 		{ name: "Rumble", var: "rumbleEnabled", type: "checkbox" },
+		...editableSettings,
 		{ name: "Star Detail", var: "starDetail", type: "select", options: [0, 1, 2, 3], labels: ["High", "Medium", "Low", "Grid"], onChange: () => { pauseLogic = true; updateStars(); sketch.redraw(); pauseLogic = false } },
 		{ name: "Reticle", var: "reticle", type: "select", options: [0, 1, 2, 3], labels: ["Fancy", "Crosshair", "Static", "None"] }
 	];
@@ -1257,28 +1259,44 @@ export function getRunInfo() {
 
 // Electron: Discord presence
 setInterval(() => {
-	if (window.ENABLE_DISCORD_RPC === false) return;
-	let details = ''
-	let state = ''
-	if (!started) {
-		state = "In the main menu"
-		details = null
-	} else if (paused) {
-		state = "Paused"
-	} else if (document.getElementById("upgradeMenu").open) {
-		state = "Choosing an upgrade"
-	} else if (player.hp <= 0) {
-		state = "Dead"
-	} else {
-		state = "In game"
+	if (window.ENABLE_DISCORD_RPC && settingsStore.get("discordRPC", true)) {
+		let details = ''
+		let state = ''
+		if (!started) {
+			state = "In the main menu"
+			details = null
+		} else if (paused) {
+			state = "Paused"
+		} else if (document.getElementById("upgradeMenu").open) {
+			state = "Choosing an upgrade"
+		} else if (player.hp <= 0) {
+			state = "Dead"
+		} else {
+			state = "In game"
+		}
+		if (details === '') details = `Score: ${player.score.toLocaleString()}`
+		window.electron.sendMessage(JSON.stringify({type: "updatePresence", details, state, startTimestamp}))
 	}
-	if (details === '') details = `Score: ${player.score.toLocaleString()}`
-	window.electron.sendMessage(JSON.stringify({type: "updatePresence", details, state, startTimestamp}))
-}, 1000);
+}, 3000);
 
 document.getElementById("quit-app").addEventListener("click", () => {
 	window.electron.sendMessage(JSON.stringify({type: "quit"}))
 })
+
+window.onEnvReady = () => {
+	if (window.ENABLE_DISCORD_RPC) {
+		editableSettings.push({
+			name: "Discord Rich Presence",
+			type: "checkbox",
+			var: "discordRPC",
+			onChange: () => {
+				if (!settingsStore.get("discordRPC", true)) {
+					window.electron.sendMessage(JSON.stringify({type: "stopPresence"}))
+				}
+			}
+		})
+	}
+}
 
 function nextButton() {
 	let btns = [...document.querySelectorAll("dialog[open] button"), ...document.querySelectorAll("dialog[open] input[type='checkbox']"), ...document.querySelectorAll("dialog[open] select")];
