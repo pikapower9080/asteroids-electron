@@ -6,6 +6,10 @@ if (env.ALLOW_SNAPSHOT == "false") {
 if (env.ENABLE_EXTERNAL_LINKS == "false") {
 	document.querySelector("#startScreen span:has(a)").remove();
 }
+if (env.ENABLE_QUIT_BUTTON == "false") {
+	document.querySelector("#quit-app").remove();
+}
+
 window.ENABLE_NETWORKING = env.ENABLE_NETWORKING == "true";
 window.ENABLE_DISCORD_RPC = env.ENABLE_DISCORD_RPC == "true";
 

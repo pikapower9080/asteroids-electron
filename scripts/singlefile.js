@@ -97,7 +97,7 @@ esbuild.build({
 					dom.window.document.body.appendChild(dom.window.document.createElement('script')).textContent = js;
 					dom.window.document.head.appendChild(dom.window.document.createElement('style')).textContent = css;
 
-					dom.window.document.body.appendChild(dom.window.document.createElement('script')).textContent = contentScriptText.replace('__ENV__', JSON.stringify({ ALLOW_SNAPSHOT: process.env.ALLOW_SNAPSHOT, ENABLE_EXTERNAL_LINKS: process.env.ENABLE_EXTERNAL_LINKS, ENABLE_NETWORKING: process.env.ENABLE_NETWORKING, ENABLE_DISCORD_RPC: process.env.ENABLE_DISCORD_RPC }));
+					dom.window.document.body.appendChild(dom.window.document.createElement('script')).textContent = contentScriptText.replace('__ENV__', JSON.stringify({ ALLOW_SNAPSHOT: process.env.ALLOW_SNAPSHOT, ENABLE_EXTERNAL_LINKS: process.env.ENABLE_EXTERNAL_LINKS, ENABLE_NETWORKING: process.env.ENABLE_NETWORKING, ENABLE_DISCORD_RPC: process.env.ENABLE_DISCORD_RPC, ENABLE_QUIT_BUTTON: process.env.ENABLE_QUIT_BUTTON }));
 
 					fs.writeFileSync('app/singlefile.html', dom.serialize());
 				})
