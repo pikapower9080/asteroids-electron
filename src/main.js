@@ -86,6 +86,8 @@ export var clampTime,
 	isFirstLevelup = true,
 	pauseLogic = false;
 
+let startTimestamp = Date.now();
+
 export const devMode = __IS_DEVELOPMENT__; // This will be replaced by esbuild accordingly
 window.ASTEROIDS_IS_DEVELOPMENT = devMode;
 
@@ -99,6 +101,7 @@ document.getElementById("start").addEventListener("click", () => {
 });
 
 function startGame(level) {
+	startTimestamp = Date.now();
 	currentLevel = levels[level];
 	let p5Inst = new p5(sketchFunc);
 	started = true;
@@ -1251,6 +1254,26 @@ export function getRunInfo() {
 	}
 	return result
 }
+
+// Electron: Discord presence
+setInterval(() => {
+	let details = ''
+	let state = ''
+	if (!started) {
+		state = "In the main menu"
+		details = null
+	} else if (paused) {
+		state = "Paused"
+	} else if (document.getElementById("upgradeMenu").open) {
+		state = "Choosing an upgrade"
+	} else if (player.hp <= 0) {
+		state = "Dead"
+	} else {
+		state = "In game"
+	}
+	if (details === '') details = `Score: ${player.score.toLocaleString()}`
+	window.electron.sendMessage(JSON.stringify({details, state, startTimestamp}))
+}, 1000);
 
 function nextButton() {
 	let btns = [...document.querySelectorAll("dialog[open] button"), ...document.querySelectorAll("dialog[open] input[type='checkbox']"), ...document.querySelectorAll("dialog[open] select")];

@@ -1,6 +1,24 @@
 // Modules to control application life and create native browser window
-const { app, BrowserWindow } = require('electron')
-const path = require('node:path')
+const { app, BrowserWindow, ipcMain } = require('electron')
+const path = require('path')
+const { RPClient, Presence } = require('rpcord')
+
+const rpc = new RPClient("1335090441908916294")
+
+rpc.on('ready', () => {
+  console.log("Connected to Discord")
+})
+
+ipcMain.on('message-from-renderer', (event, data) => {
+  data = JSON.parse(data)
+  const presence = new Presence()
+  if (data.state) presence.setState(data.state)
+  if (data.details) presence.setDetails(data.details)
+  if (data.startTimestamp) presence.setStartTimestamp(data.startTimestamp)
+  rpc.setActivity(presence)
+})
+
+rpc.connect()
 
 function createWindow () {
   // Create the browser window.
@@ -12,6 +30,7 @@ function createWindow () {
     minHeight: 600,
     webPreferences: {
       devTools: (process.env.NODE_ENV === 'development'),
+      preload: path.join(__dirname, 'preload.js')
     }
   })
 
