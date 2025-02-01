@@ -1272,8 +1272,12 @@ setInterval(() => {
 		state = "In game"
 	}
 	if (details === '') details = `Score: ${player.score.toLocaleString()}`
-	window.electron.sendMessage(JSON.stringify({details, state, startTimestamp}))
+	window.electron.sendMessage(JSON.stringify({type: "updatePresence", details, state, startTimestamp}))
 }, 1000);
+
+document.getElementById("quit-app").addEventListener("click", () => {
+	window.electron.sendMessage(JSON.stringify({type: "quit"}))
+})
 
 function nextButton() {
 	let btns = [...document.querySelectorAll("dialog[open] button"), ...document.querySelectorAll("dialog[open] input[type='checkbox']"), ...document.querySelectorAll("dialog[open] select")];

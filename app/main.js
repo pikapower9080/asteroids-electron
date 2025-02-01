@@ -11,11 +11,15 @@ rpc.on('ready', () => {
 
 ipcMain.on('message-from-renderer', (event, data) => {
   data = JSON.parse(data)
-  const presence = new Presence()
-  if (data.state) presence.setState(data.state)
-  if (data.details) presence.setDetails(data.details)
-  if (data.startTimestamp) presence.setStartTimestamp(data.startTimestamp)
-  rpc.setActivity(presence)
+  if (data.type && data.type == "updatePresence") {
+    const presence = new Presence()
+    if (data.state) presence.setState(data.state)
+    if (data.details) presence.setDetails(data.details)
+    if (data.startTimestamp) presence.setStartTimestamp(data.startTimestamp)
+    rpc.setActivity(presence)
+  } else if (data.type && data.type == "quit") {
+    app.quit()
+  }
 })
 
 rpc.connect()
