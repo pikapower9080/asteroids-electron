@@ -3,15 +3,21 @@ const { app, BrowserWindow, ipcMain } = require('electron')
 const path = require('path')
 const { RPClient, Presence } = require('rpcord')
 
+let setupPresence = false
+
 const rpc = new RPClient("1335090441908916294")
 
 rpc.on('ready', () => {
   console.log("Connected to Discord")
 })
 
-ipcMain.on('message-from-renderer', (event, data) => {
+ipcMain.on('message-from-renderer', async (event, data) => {
   data = JSON.parse(data)
   if (data.type && data.type == "updatePresence") {
+    if (!setupPresence) {
+      await rpc.connect()
+      setupPresence = true
+    }
     const presence = new Presence()
     if (data.state) presence.setState(data.state)
     if (data.details) presence.setDetails(data.details)
@@ -21,8 +27,6 @@ ipcMain.on('message-from-renderer', (event, data) => {
     app.quit()
   }
 })
-
-rpc.connect()
 
 function createWindow () {
   // Create the browser window.

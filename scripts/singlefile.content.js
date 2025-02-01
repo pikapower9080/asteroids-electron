@@ -7,6 +7,7 @@ if (env.ENABLE_EXTERNAL_LINKS == "false") {
 	document.querySelector("#startScreen span:has(a)").remove();
 }
 window.ENABLE_NETWORKING = env.ENABLE_NETWORKING == "true";
+window.ENABLE_DISCORD_RPC = env.ENABLE_DISCORD_RPC == "true";
 
 if (env.ENABLE_NETWORKING !== "true") {
 	document.querySelector("#signInDiv").remove();

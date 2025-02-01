@@ -1257,6 +1257,7 @@ export function getRunInfo() {
 
 // Electron: Discord presence
 setInterval(() => {
+	if (window.ENABLE_DISCORD_RPC === false) return;
 	let details = ''
 	let state = ''
 	if (!started) {
