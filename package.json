@@ -8,7 +8,7 @@
 		"build": "bun run singlefile && bun run dist",
 		"dev": "bun run singlefile && NODE_ENV=development bun run start",
 		"clean": "bun run scripts/clean.js",
-		"singlefile": "bun run scripts/singlefile.js",
+		"singlefile": "bun run scripts/setup.js && bun run scripts/singlefile.js",
 		"start": "electron .",
 		"dist": "electron-builder",
 		"build:windows": "electron-builder --win --x64",
