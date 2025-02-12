@@ -39,6 +39,7 @@ export const settingsStore = new EasyStorage({
 		rumbleEnabled: true,
 		discordRPC: true,
 		screenShakeIntensity: 0.8,
+		volume: 1
 	},
 	migration: {
 		enabled: true,
@@ -198,9 +199,9 @@ const sketchFunc = (sk) => {
 		{ name: "Submit Scores", var: "submitScores", type: "checkbox" },
 		{ name: "Send Feed Events", var: "sendFeedEvents", type: "checkbox" },
 		{ name: "Show Feed", var: "showFeed", type: "checkbox" },
-		{ name: "Mute", var: "isMuted", type: "checkbox" },
 		{ name: "Rumble", var: "rumbleEnabled", type: "checkbox" },
 		...editableSettings,
+		{ name: "Volume", var: "volume", type: "range", min: 0, max: 1, step: 0.05 },
 		{ name: "Screen Shake Intensity", var: "screenShakeIntensity", type: "range", min: 0, max: 1, step: 0.05 },
 		{ name: "Star Detail", var: "starDetail", type: "select", options: [0, 1, 2, 3], labels: ["High", "Medium", "Low", "Grid"], onChange: () => { pauseLogic = true; updateStars(); sketch.redraw(); pauseLogic = false } },
 		{ name: "Reticle", var: "reticle", type: "select", options: [0, 1, 2, 3], labels: ["Fancy", "Crosshair", "Static", "None"] }
@@ -1358,6 +1359,27 @@ export function onGamepadButton(button, state) {
 	if (button == "dpadDown" && state) {
 		nextButton();
 	}
+	if (document.activeElement.tagName == "INPUT" && document.activeElement.type == "range") {
+		if (button == "dpadLeft" && state) {
+			document.activeElement.stepDown();
+			document.activeElement.dispatchEvent(new Event("change"));
+		}
+		if (button == "dpadRight" && state) {
+			document.activeElement.stepUp();
+			document.activeElement.dispatchEvent(new Event("change"));
+		}
+	}
+	if (document.activeElement.tagName == "SELECT") {
+		if (button == "dpadLeft" && state) {
+			document.activeElement.selectedIndex = (document.activeElement.selectedIndex - 1 + document.activeElement.options.length) % document.activeElement.options.length
+			document.activeElement.dispatchEvent(new Event("change"));
+		}
+		if (button == "dpadRight" && state) {
+			document.activeElement.selectedIndex = (document.activeElement.selectedIndex + 1) % document.activeElement.options.length
+			document.activeElement.dispatchEvent(new Event("change"));
+		}
+	}
+
 	if (button == "bottom" && state) {
 		document.activeElement.click();
 	}
