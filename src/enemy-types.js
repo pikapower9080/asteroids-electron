@@ -3,7 +3,7 @@ import { rumble } from "./gamepad";
 import { enemies, clampTime, applyBorder, projectiles, player, getOnScreen, sketch, get, set, settings, damagePlayer, currentLevel, getRandomBox, calcBorder } from "./main";
 import projectileTypes, { projectileEnums } from "./projectile-types";
 import particleTypes, { explode } from "./particle-types";
-import { playSound } from './sound';
+import { playSound } from './util/sound';
 
 /**
  * Represents an enemy type.
@@ -78,45 +78,9 @@ const enemyTypes = [
 			maxHp: ({ }, { hp }) => hp
 		},
 		tick: (enemy, i) => {
-			enemy.time += clampTime;
-
-			if (enemy.burning) {
-				enemy.hp -= (enemy.maxHp / 15 + 0.5) * clampTime;
-			}
-
-			enemy.effectTime -= clampTime;
-			if (enemy.effectTime <= 0) {
-				enemy.frozen = false;
-				enemy.burning = false;
-			}
+			defaultTick(enemy, i, { burnTime: 15, burnOffset: 0.5 });
 
 			if (enemy.time > 1 || !enemy.spawn) {
-				if (!enemy.frozen) {
-					enemy.pos["+="]((enemy.vel)["*"](clampTime));
-				}
-
-				applyBorder(enemy);
-
-
-				projectiles.forEach((projectile, projectileI) => {
-					projectile.enemyTick(projectile, projectileI, enemy, i);
-				});
-
-				let dif = (enemy.pos)["-"](player.pos);
-				if (dif.mag < enemy.size + 25 && player.dodge.time <= 0 && !enemy.frozen) {
-					let hitStr = (player.vel)["-"](enemy.vel).mag;
-					enemy.hp--;
-					enemy.pos["-="](player.pos);
-					enemy.pos.mag = enemy.size + 30;
-					enemy.pos["+="](player.pos);
-					let hitVel = dif.copy;
-					hitVel.mag = hitStr;
-					enemy.vel["+="](hitVel);
-					player.vel["-="](hitVel);
-					enemy.hitDir = dif.heading;
-
-					damagePlayer((enemy.size > 10 ? 25 : 15) * (hitStr / 250 + 0.5));
-				}
 				if (enemy.hp <= 0) {
 					enemies.splice(i, 1);
 					i--;
@@ -199,7 +163,7 @@ const enemyTypes = [
 	}),
 	new EnemyType({
 		name: "Turret",
-		props: ["mode", "pos", "vel", "spawn", "hp", "index", "max"],
+		props: ["mode", "pos", "vel", "spawn", "hp", "index", "max", "range"],
 		defaults: {
 			type: 1,
 			id: () => Math.floor(Math.random() * 1e6 + 1e6),
@@ -212,7 +176,7 @@ const enemyTypes = [
 			time: 0,
 			reloadTime: 5,
 			cooldown: 0,
-			cooldownTime: 1.3,
+			cooldownTime: 1.5,
 			reload: ({ index, max }, { reloadTime, cooldownTime }) => {
 				console.debug(index, max, reloadTime, cooldownTime);
 				return ((index + (Math.random() - 0.5) * 0.5) * 2 + 1) / (max * 2) * (reloadTime + cooldownTime)
@@ -223,46 +187,16 @@ const enemyTypes = [
 			effectTime: 0,
 			burning: false,
 			frozen: false,
+			range: 1000,
 			// reload: 0
 		},
 		tick: (enemy, i) => {
-			enemy.time += clampTime;
-
-			if (enemy.burning) {
-				enemy.hp -= enemy.maxHp / 20 * clampTime;
-			}
-
-			enemy.effectTime -= clampTime;
-			if (enemy.effectTime <= 0) {
-				enemy.frozen = false;
-				enemy.burning = false;
-			}
+			defaultTick(enemy, i, { burnTime: 20, burnOffset: 0.5, move: false });
 
 			if (enemy.time > 1 || !enemy.spawn) {
-				projectiles.forEach((projectile, projectileI) => {
-					projectile.enemyTick(projectile, projectileI, enemy, i);
-				});
-
-
-				let dif = (enemy.pos)["-"](player.pos);
-
-				if (dif.mag < enemy.size + 25 && player.dodge.time <= 0 && !enemy.frozen) {
-					let hitStr = (player.vel)["-"](enemy.vel).mag;
-					enemy.hp--;
-					enemy.pos["-="](player.pos);
-					enemy.pos.mag = enemy.size + 30;
-					enemy.pos["+="](player.pos);
-					let hitVel = dif.copy;
-					hitVel.mag = hitStr;
-					enemy.vel["+="](hitVel);
-					player.vel["-="](hitVel);
-					enemy.hitDir = dif.heading;
-					damagePlayer((enemy.size > 10 ? 25 : 15) * (hitStr / 250 + 0.5));
-				}
-
 				if (enemy.cooldown > 0) {
 					enemy.cooldown -= clampTime;
-				} else if (enemy.pos["-"](player.pos).mag < 1000 && !enemy.frozen) {
+				} else if (enemy.pos["-"](player.pos).mag < enemy.range && !enemy.frozen) {
 					enemy.reload -= clampTime;
 					let aim = (player.pos)["-"](enemy.pos);
 					aim["+="]((player.vel)["*"](0.7));
@@ -275,7 +209,7 @@ const enemyTypes = [
 						enemy.reload = enemy.reloadTime;
 						enemy.cooldown = enemy.cooldownTime;
 						playSound("turretAim", enemy.pos);
-						projectileTypes[projectileEnums.enemyLaser].create({ pos: enemy.pos.copy, dir: enemy.dir, link: enemy.id });
+						projectileTypes[projectileEnums.enemyLaser].create({ pos: enemy.pos.copy, dir: enemy.dir, link: enemy.id, maxLen: enemy.range });
 					}
 				}
 
@@ -388,17 +322,7 @@ const enemyTypes = [
 			}
 		},
 		tick: (enemy, i) => {
-			enemy.time += clampTime;
-
-			if (enemy.burning) {
-				enemy.hp -= enemy.maxHp / 20 * clampTime;
-			}
-
-			enemy.effectTime -= clampTime * 3;
-			if (enemy.effectTime <= 0) {
-				enemy.frozen = false;
-				enemy.burning = false;
-			}
+			defaultTick(enemy, i, { burnAmt: 15, burnOffset: 0.5 });
 
 			if (!enemy.frozen) {
 				enemy.children.forEach((child, childIndex) => {
@@ -410,25 +334,6 @@ const enemyTypes = [
 				})
 
 				if (enemy.time > 1 || !enemy.spawn) {
-					enemy.pos["+="]((enemy.vel)["*"](clampTime));
-					applyBorder(enemy);
-					projectiles.forEach((projectile, projectileI) => {
-						projectile.enemyTick(projectile, projectileI, enemy, i);
-					});
-					let dif = (enemy.pos)["-"](player.pos);
-					if (dif.mag < enemy.size + 25 && player.dodge.time <= 0) {
-						let hitStr = (player.vel)["-"](enemy.vel).mag;
-						enemy.hp--;
-						enemy.pos["-="](player.pos);
-						enemy.pos.mag = enemy.size + 30;
-						enemy.pos["+="](player.pos);
-						let hitVel = dif.copy;
-						hitVel.mag = hitStr;
-						enemy.vel["+="](hitVel);
-						player.vel["-="](hitVel);
-						enemy.hitDir = dif.heading;
-						damagePlayer((enemy.size > 10 ? 25 : 15) * (hitStr / 250 + 0.5));
-					}
 					if (enemy.hp <= 0) {
 						enemies.splice(i, 1);
 						i--;
@@ -446,7 +351,7 @@ const enemyTypes = [
 							set("screenshake", get("screenshake") + newScreenshake / 5);
 						}
 						player.xp += enemy.size > 15 ? 5 : 3;
-						player.score += enemy.size > 15 ? 5 : enemy.size > 10 ? 3 : 1;
+						player.score += enemy.size > 15 ? 5 : enemy.size > 10 ? 50 : 30;
 
 						enemy.children.map(child => child.hp = 0)
 						rumble(enemy.size > 15 ? 0.15 : enemy.size > 10 ? 0.1 : 0.05, enemy.size > 15 ? 0.5 : enemy.size > 10 ? 0.4 : 0.3);
@@ -516,4 +421,51 @@ function getPosAroundPlayer() {
 		return getPosAroundPlayer();
 	}
 	return pos;
+}
+
+function defaultCollide(enemy) {
+	let dif = (enemy.pos)["-"](player.pos);
+	if (dif.mag < enemy.size + player.size && player.dodge.time <= 0 && !enemy.frozen) {
+		let hitStr = (player.vel)["-"](enemy.vel).mag;
+		enemy.hp--;
+		enemy.pos["-="](player.pos);
+		enemy.pos.mag = enemy.size + player.size + 3;
+		enemy.pos["+="](player.pos);
+		let hitVel = dif.copy;
+		hitVel.mag = hitStr;
+		enemy.vel["+="](hitVel);
+		player.vel["-="](hitVel);
+		enemy.hitDir = dif.heading;
+
+		damagePlayer((enemy.size > 10 ? 25 : 15) * (hitStr / 250 + 0.5));
+	}
+}
+
+function defaultTick(enemy, i, { burnTime = 15, burnOffset = 0.5, move = true }) {
+	enemy.time += clampTime;
+
+	if (enemy.burning) {
+		enemy.hp -= (enemy.maxHp / burnTime + burnOffset) * clampTime;
+	}
+
+	enemy.effectTime -= clampTime;
+	if (enemy.effectTime <= 0) {
+		enemy.frozen = false;
+		enemy.burning = false;
+	}
+
+	if (enemy.time > 1 || !enemy.spawn) {
+		if (move) {
+			if (!enemy.frozen) {
+				enemy.pos["+="]((enemy.vel)["*"](clampTime));
+			}
+			applyBorder(enemy);
+		}
+
+		projectiles.forEach((projectile, projectileI) => {
+			projectile.enemyTick(projectile, projectileI, enemy, i);
+		});
+
+		defaultCollide(enemy);
+	}
 }

@@ -6,7 +6,7 @@ import levels from "./levels";
 import projectileTypes, { projectileEnums } from "./projectile-types";
 import { signOut, pb, getScores, postScore, user, getUsers, postFeed, signedIn, signIn, signInWithGoogle, updateStats, subscribeToFeed } from "./pocketbase";
 import { gamepad, gamepadConnected, rumble, updateGamepad } from "./gamepad";
-import { audioContext, playSound } from "./sound";
+import { audioContext, playSound } from "./util/sound";
 import EasyStorage from "@pikapower9080/easy-storage";
 import particleTypes, { explode, particleEnums } from "./particle-types";
 import xssFilters from "xss-filters";
@@ -39,7 +39,8 @@ export const settingsStore = new EasyStorage({
 		rumbleEnabled: true,
 		discordRPC: true,
 		screenShakeIntensity: 0.8,
-		volume: 1
+		volume: 1,
+		vignetteMaxOpacity: 1
 	},
 	migration: {
 		enabled: true,
@@ -86,7 +87,9 @@ export var clampTime,
 	lastScore,
 	maxFps = 240,
 	isFirstLevelup = true,
-	pauseLogic = false;
+	pauseLogic = false,
+	vignetteOpacity = 0,
+	shieldVignetteOpacity = 0;
 
 let startTimestamp = Date.now();
 
@@ -97,8 +100,8 @@ window.ASTEROIDS_IS_DEVELOPMENT = devMode;
 document.getElementById("startScreen").showModal();
 started = false;
 document.getElementById("start").addEventListener("click", () => {
-	startGame(0);
 	document.getElementById("startScreen").close();
+	startGame(0);
 	audioContext.resume();
 });
 
@@ -142,7 +145,7 @@ var stars = [];
 export var playerUpgrades = [
 	{ name: "Speed", desc: "Increase movement speed", func: () => player.speed += 120, max: 3, weight: 1 },
 	{ name: "Health", desc: "Increase max health", func: () => { player.maxHp *= 1.35; player.hp += 20 }, max: 3, weight: 1 },
-	{ name: "Shield", desc: "Improve shield regeneration and capacity", func: () => { player.shield.maxValue += 10; player.shield.regenTime--; player.shield.regenSpeed++ }, max: 5, weight: 0.8 },
+	{ name: "Shield", desc: "Improve shield regeneration and capacity", func: () => { player.shield.maxValue += 10; player.shield.regenTime--; player.shield.regenSpeed++; player.shield.regenTimeLeft = player.shield.regenTime }, max: 5, weight: 0.8 },
 	{ name: "Resistance", desc: ["Take 10% less damage (-10% total)", "Take 10% less damage (-20% total)", "Take 10% less damage (-30% total)", "Take 10% less damage (-40% total)"], func: () => player.damageFactor -= 0.1, max: 4, weight: 0.8 },
 	{ name: "Recovery", desc: ["Recover 0.25 HP every second", "Recover 0.5 HP every second", "Recover 0.75 HP every second", "Recovery 1 HP every second"], func: () => { player.recovery += 0.25 }, max: 4, weight: 0.4 }
 	// { name: "", desc: [], func: () => {}, max: 0, weight: 1 }
@@ -157,6 +160,7 @@ const sketchFunc = (sk) => {
 		pos: Vector.zero,
 		vel: Vector.zero,
 		dir: 0,
+		size: 25,
 		weapons: [],
 		isFiring: false,
 		speed: 350,
@@ -203,6 +207,7 @@ const sketchFunc = (sk) => {
 		...editableSettings,
 		{ name: "Volume", var: "volume", type: "range", min: 0, max: 1, step: 0.05 },
 		{ name: "Screen Shake Intensity", var: "screenShakeIntensity", type: "range", min: 0, max: 1, step: 0.05 },
+		{ name: "Vignette Opacity", var: "vignetteMaxOpacity", type: "range", min: 0, max: 1, step: 0.05 },
 		{ name: "Star Detail", var: "starDetail", type: "select", options: [0, 1, 2, 3], labels: ["High", "Medium", "Low", "Grid"], onChange: () => { pauseLogic = true; updateStars(); sketch.redraw(); pauseLogic = false } },
 		{ name: "Reticle", var: "reticle", type: "select", options: [0, 1, 2, 3], labels: ["Fancy", "Crosshair", "Static", "None"] }
 	];
@@ -244,6 +249,9 @@ const sketchFunc = (sk) => {
 		clampTime = sketch.deltaTime;
 		if (clampTime > 100) clampTime = 100;
 		clampTime /= 1000;
+		// 1/60 default value, 0 would cause /0 errors
+		if (typeof deltaTime != "number" || isNaN(deltaTime) || !isFinite(deltaTime)) deltaTime = 1 / 60;
+		if (typeof clampTime != "number" || isNaN(clampTime) || !isFinite(clampTime)) clampTime = 1 / 60;
 
 		if (!pauseLogic) {
 			if (!player.died) time += clampTime;
@@ -259,8 +267,13 @@ const sketchFunc = (sk) => {
 			screenshake *= Math.pow(5e-5, clampTime);
 
 			// blood overlay
-			document.querySelector(".vignette-red").style.opacity = 1 - Math.min((player.hp / player.maxHp) * 1.5, 1);
-
+			let maxOpacity = 1;
+			let targetOpacity = maxOpacity - Math.min((player.hp / player.maxHp) * 1.5, maxOpacity);
+			vignetteOpacity += (targetOpacity - vignetteOpacity) * (1 - Math.pow(0.2, clampTime));
+			document.querySelector(".vignette-red").style.opacity = Math.round(vignetteOpacity * 100 * settingsStore.get("vignetteMaxOpacity", 1)) / 100;
+			shieldVignetteOpacity *= Math.pow(0.2, clampTime);
+			document.querySelector(".vignette-blue").style.opacity = Math.round(shieldVignetteOpacity * 100 * settingsStore.get("vignetteMaxOpacity", 1)) / 100;
+			// document.querySelector(".vignette-blue").style.opacity = 1;
 		}
 
 		// fps
@@ -281,7 +294,7 @@ const sketchFunc = (sk) => {
 			currentLevel.waves.forEach(wave => {
 				if (!("passed" in wave)) wave.passed = false;
 				if (!wave.passed) {
-					if (time > wave.time) {
+					if (time >= wave.time) {
 						wave.passed = true;
 						wave.enemies.forEach(enemy => {
 							for (let i = 0; i < enemy.count; i++) {
@@ -366,6 +379,9 @@ const sketchFunc = (sk) => {
 				}
 
 				if (player.hp > player.maxHp) player.hp = player.maxHp;
+
+				// player size
+				player.size = 25 + (player.shield.value > 0 ? 10 : 0);
 
 				// weapons
 				player.weapons.forEach(weapon => {
@@ -543,7 +559,7 @@ const sketchFunc = (sk) => {
 					sketch.stroke(`rgba(50,120,200,${0.8 * shieldOpacity})`);
 					sketch.noFill();
 					sketch.strokeWeight(5);
-					sketch.circle(0, 0, 50);
+					sketch.circle(0, 0, 60);
 				}
 				sketch.stroke(255);
 				sketch.strokeWeight(5);
@@ -553,7 +569,7 @@ const sketchFunc = (sk) => {
 					sketch.noStroke();
 					sketch.fill(`rgba(50,120,200,${0.2 * shieldOpacity})`);
 					sketch.strokeWeight(5);
-					sketch.circle(0, 0, 50);
+					sketch.circle(0, 0, 60);
 				}
 			}
 			sketch.pop();
@@ -919,14 +935,17 @@ export function damagePlayer(amount, source) {
 	if (amount <= 0) return;
 	player.shield.regenTimeLeft = 0;
 	if (player.shield.value > amount) {
+		shieldVignetteOpacity += Math.min(amount / 20, 1 - shieldVignetteOpacity);
 		rumble(0.15, 0.35);
 		player.shield.value -= amount;
 		playSound("shield")
 		return;
 	}
+	shieldVignetteOpacity += Math.min(amount / 20 * 0.5, 1 - shieldVignetteOpacity);
 	amount -= player.shield.value;
 	player.shield.value = 0;
 	amount *= player.damageFactor;
+	vignetteOpacity += Math.min(amount / 20, 1 - vignetteOpacity);
 	player.hp -= amount;
 	playSound(source == "border" ? "border" : "hurt")
 	if (player.hp > 0) {
@@ -1104,7 +1123,7 @@ document.getElementById("settings-button").addEventListener("click", () => {
 document.getElementById("settings-menu").addEventListener("close", () => {
 	document.getElementById("pause").showModal();
 })
-document.getElementById("settings-exit").addEventListener("click", () => {	
+document.getElementById("settings-exit").addEventListener("click", () => {
 	document.getElementById("settings-menu").close();
 })
 

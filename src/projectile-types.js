@@ -1,7 +1,7 @@
 import Vector from "@cam0studios/vector-library";
-import { lineCircleCollision, lineClosestPoint } from "@cam0studios/intersections";
+import { lineCircleCollision, lineClosestPoint, raycast } from "@cam0studios/intersections";
 import { projectiles, clampTime, calcBorder, sketch, settings, damagePlayer, currentLevel, player, enemies, time } from "./main";
-import { playSound } from "./sound";
+import { playSound } from "./util/sound";
 import { explode } from "./particle-types";
 
 export const projectileEnums = {
@@ -145,20 +145,24 @@ const projectileTypes = [
 	}),
 	new ProjectileType({
 		name: "Enemy Laser",
-		props: ["pos", "dir", "link"],
+		props: ["pos", "dir", "link", "maxLen", "damage", "tractor", "push"],
 		defaults: {
 			cooldown: 0.5,
 			firing: 0,
 			dirV: ({ dir }) => new Vector(1, 0).rotate(dir),
 			len: 0,
 			maxLen: 1000,
-			fired: false
+			fired: false,
+			size: 0,
+			damage: 40,
+			tractor: 1000,
+			push: 1500
 		},
 		tick: (projectile, i) => {
 			let linked = enemies.find(enemy => enemy.id === projectile.link);
 			if (linked) {
 				projectile.pos = linked.pos.copy;
-				// projectile.dir = linked.dir;
+				projectile.dir = linked.dir;
 			}
 			projectile.dirV = new Vector(1, 0).rotate(projectile.dir);
 			if (projectile.cooldown > 0) {
@@ -171,18 +175,33 @@ const projectileTypes = [
 				if (projectile.fired == false) {
 					playSound("turretFire", projectile.pos);
 				}
-				projectile.fired = true
+				projectile.fired = true;
 				projectile.firing += clampTime;
 				projectile.len += clampTime * projectile.maxLen * 4;
+				projectile.size = 10;
+				if (projectile.firing < 0.1) {
+					projectile.size *= projectile.firing * 10;
+				}
+				if (projectile.firing > 0.8) {
+					projectile.size *= (1 - projectile.firing) * 5;
+				}
 				if (projectile.len > projectile.maxLen) projectile.len = projectile.maxLen;
 
-				let int = lineCircleCollision(projectile.pos, (projectile.pos)["+"]((projectile.dirV)["*"](projectile.len)), player.pos, 25);
-				if (int) {
-					let point = lineClosestPoint(projectile.pos, (projectile.pos)["+"]((projectile.dirV)["*"](projectile.len)), player.pos);
-					explode(point["+"](new Vector(Math.random() * 15, 0).rotate(Math.random() * 2 * Math.PI))["-"]((projectile.dirV)["*"](20)), 15);
-					damagePlayer(clampTime * 10);
-					player.vel["+="]((point)["-"](player.pos).normalized["*"](clampTime * 500));
-					player.vel["+="]((projectile.dirV)["*"](clampTime * 1000));
+				let dist = raycast(projectile.pos, projectile.dirV, player.pos, player.size + projectile.size);
+				if (dist.length > 1) {
+					let d1 = dist[0] + projectile.size;
+					let d2 = dist[1] - projectile.size;
+					if (d1 < projectile.len) {
+						if (d2 > projectile.len) d2 = projectile.len;
+						let pos = (projectile.pos)["+"]((projectile.dirV)["*"](d1));
+						player.vel["+="]((projectile.dirV)["*"](clampTime * (projectile.tractor + projectile.push)));
+						player.vel["+="]((pos)["-"](player.pos).normalize()["*"](clampTime * projectile.tractor));
+						damagePlayer(projectile.damage * clampTime, pos);
+
+						explode((pos)["+"](new Vector(Math.random() * 20 - 10, Math.random() * 20 - 10)), Math.random() * 10 + 5);
+						let randPos = (projectile.pos)["+"]((projectile.dirV)["*"](d1 + Math.random() * (d2 - d1)));
+						explode(randPos, Math.random() * 5 + 5);
+					}
 				}
 
 				if (projectile.firing >= 1) {
@@ -208,14 +227,7 @@ const projectileTypes = [
 				} else {
 					sketch.noFill();
 					sketch.stroke("rgb(200, 230, 255)");
-					let thick = 10;
-					if (projectile.firing < 0.1) {
-						thick *= projectile.firing * 10;
-					}
-					if (projectile.firing > 0.8) {
-						thick *= (1 - projectile.firing) * 5;
-					}
-					sketch.strokeWeight(thick);
+					sketch.strokeWeight(projectile.size);
 					sketch.translate(projectile.pos.x, projectile.pos.y);
 					sketch.line(0, 0, projectile.len * projectile.dirV.x, projectile.len * projectile.dirV.y);
 				}
@@ -232,7 +244,8 @@ const projectileTypes = [
 			dir: 0,
 			time: 0,
 			children: [],
-			rad: 0
+			rad: 0,
+			fade: 0
 		},
 		tick: (projectile, i) => {
 			if (projectile.time == 0) {
@@ -243,17 +256,19 @@ const projectileTypes = [
 			projectile.dir += projectile.speed * clampTime;
 			projectile.time += clampTime;
 			projectile.duration -= clampTime;
+			projectile.fade = 1;
+			if (projectile.time < 1.5) projectile.fade *= projectile.time / 1.5;
+			if (projectile.duration < 1.5) projectile.fade *= projectile.duration / 1.5;
+			projectile.fade = Math.pow(projectile.fade, 0.4);
 
 			for (let rot = 0; rot < projectile.amount; rot++) {
 				let child = projectile.children[rot];
-				child.pos = new Vector(projectile.dist, 0).rotate(projectile.dir + rot * Math.PI * 2 / projectile.amount);
+				child.pos = new Vector(projectile.dist * projectile.fade, 0).rotate(projectile.dir + rot * Math.PI * 2 / projectile.amount);
 				child.pos["+="](player.pos);
-				child.vel = new Vector(0, projectile.speed * projectile.dist * 2 * Math.PI * clampTime).rotate(projectile.dir + rot * Math.PI * 2 / projectile.amount);
+				child.vel = new Vector(0, projectile.speed * projectile.dist * projectile.fade * 2 * Math.PI * clampTime).rotate(projectile.dir + rot * Math.PI * 2 / projectile.amount);
 			}
 
-			projectile.rad = projectile.size;
-			if (projectile.time < 1) projectile.rad *= projectile.time;
-			if (projectile.duration < 1) projectile.rad *= projectile.duration;
+			projectile.rad = projectile.size * projectile.fade;
 
 			if (projectile.duration <= 0) {
 				projectiles.splice(i, 1);
@@ -266,13 +281,13 @@ const projectileTypes = [
 			for (let rot = 0; rot < projectile.amount; rot++) {
 				sketch.push();
 				sketch.rotate(rot * Math.PI * 2 / projectile.amount);
-				sketch.translate(projectile.dist, 0);
+				sketch.translate(projectile.dist * projectile.fade, 0);
 				sketch.rotate(-projectile.dir * 2);
 
 				sketch.noStroke();
 				sketch.fill(255);
 				let spikes = 3;
-				let spikeSize = new Vector(0.3, 0.45);
+				let spikeSize = new Vector(0.3, 0.45)["*"](projectile.fade * 0.5 + 0.5);
 				spikeSize["*="](projectile.rad);
 				for (let spike = 0; spike < spikes; spike++) {
 					sketch.push();
