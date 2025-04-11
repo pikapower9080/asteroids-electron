@@ -40,7 +40,8 @@ export const settingsStore = new EasyStorage({
 		discordRPC: true,
 		screenShakeIntensity: 0.8,
 		volume: 1,
-		vignetteMaxOpacity: 1
+		vignetteMaxOpacity: 1,
+		showMinimap: true
 	},
 	migration: {
 		enabled: true,
@@ -106,11 +107,23 @@ document.getElementById("start").addEventListener("click", () => {
 });
 
 function startGame(level) {
-	startTimestamp = Date.now();
-	currentLevel = levels[level];
+	currentLevel = copyObj(levels[level]);
 	let p5Inst = new p5(sketchFunc);
 	started = true;
 	subscribeToFeed();
+}
+function copyObj(obj) {
+	if (Array.isArray(obj)) {
+		return obj.map(item => copyObj(item));
+	}
+	if (typeof obj === "object" && obj !== null) {
+		let newObj = {};
+		for (let key in obj) {
+			newObj[key] = copyObj(obj[key]);
+		}
+		return newObj;
+	}
+	return obj;
 }
 function stopGame() {
 	sketch.noLoop();
@@ -202,7 +215,7 @@ const sketchFunc = (sk) => {
 		{ name: "Dim Background", var: "dimBG", type: "checkbox", onChange: () => { pauseLogic = true; sketch.redraw(); pauseLogic = false } },
 		{ name: "Submit Scores", var: "submitScores", type: "checkbox" },
 		{ name: "Send Feed Events", var: "sendFeedEvents", type: "checkbox" },
-		{ name: "Show Feed", var: "showFeed", type: "checkbox" },
+		{ name: "Show Minimap", var: "showMinimap", type: "checkbox", onChange: () => { pauseLogic = true; sketch.redraw(); pauseLogic = false } },
 		{ name: "Rumble", var: "rumbleEnabled", type: "checkbox" },
 		...editableSettings,
 		{ name: "Volume", var: "volume", type: "range", min: 0, max: 1, step: 0.05 },
@@ -588,26 +601,28 @@ const sketchFunc = (sk) => {
 			sketch.pop();
 
 			// minimap
-			let minimapSize = 130;
-			let minimapBorder = 10
-			sketch.push();
-			sketch.fill(0);
-			sketch.stroke(255);
-			sketch.strokeWeight(5);
-			sketch.rect(size.x - minimapSize - 20 - minimapBorder / 2, size.y - minimapSize - 20 - minimapBorder / 2, minimapSize + minimapBorder, minimapSize + minimapBorder);
-			sketch.translate(size.x - 20 - minimapSize / 2, size.y - 20 - minimapSize / 2);
-			sketch.scale(130 / 2, 130 / 2);
-
-			// minimap content
-			enemies.forEach(enemy => {
-				sketch.strokeWeight(0.002 * enemy.size * [1, 2.5, 2.5][enemy.type]);
-				sketch.stroke(["rgb(200,50,0)", "rgb(50,200,0)", "rgb(0,50,200)"][enemy.type]);
-				sketch.point(enemy.pos.x / currentLevel.size, enemy.pos.y / currentLevel.size);
-			});
-			sketch.strokeWeight(0.05);
-			sketch.stroke(255);
-			sketch.point(player.pos.x / currentLevel.size, player.pos.y / currentLevel.size);
-			sketch.pop();
+			if (settingsStore.get("showMinimap", true)) {
+				let minimapSize = 130;
+				let minimapBorder = 10
+				sketch.push();
+				sketch.fill(0);
+				sketch.stroke(255);
+				sketch.strokeWeight(5);
+				sketch.rect(size.x - minimapSize - 20 - minimapBorder / 2, size.y - minimapSize - 20 - minimapBorder / 2, minimapSize + minimapBorder, minimapSize + minimapBorder);
+				sketch.translate(size.x - 20 - minimapSize / 2, size.y - 20 - minimapSize / 2);
+				sketch.scale(130 / 2, 130 / 2);
+	
+				// minimap content
+				enemies.forEach(enemy => {
+					sketch.strokeWeight(0.002 * enemy.size * [1, 2.5, 2.5][enemy.type]);
+					sketch.stroke(["rgb(200,50,0)", "rgb(50,200,0)", "rgb(0,50,200)"][enemy.type]);
+					sketch.point(enemy.pos.x / currentLevel.size, enemy.pos.y / currentLevel.size);
+				});
+				sketch.strokeWeight(0.05);
+				sketch.stroke(255);
+				sketch.point(player.pos.x / currentLevel.size, player.pos.y / currentLevel.size);
+				sketch.pop();
+			}
 
 			// enemies left text
 			sketch.push();
@@ -1215,16 +1230,7 @@ function setKey(event, state) {
 					player.pos.y = mousePos.y
 					cheated = true
 					break;
-				case "P":
-					if (paused) unpause();
-					if (document.head.querySelector("script[src='https://cdn.jsdelivr.net/npm/eruda']")) break;
 
-					const erudaScript = document.createElement("script");
-					erudaScript.src = "https://cdn.jsdelivr.net/npm/eruda";
-					document.head.appendChild(erudaScript);
-					erudaScript.onload = () => eruda.init();
-
-					break;
 				case "b":
 					settings.emojiMovie = !settings.emojiMovie;
 					break;
@@ -1272,6 +1278,16 @@ function setKey(event, state) {
 					}
 					break;
 			}
+		}
+	}
+	if (state && devMode && event.key === "P") {
+		if (paused) unpause();
+		if (!document.head.querySelector("script[src='https://cdn.jsdelivr.net/npm/eruda']")) {
+			const erudaScript = document.createElement("script");
+			erudaScript.src = "https://cdn.jsdelivr.net/npm/eruda";
+			document.head.appendChild(erudaScript);
+			erudaScript.onload = () => eruda.init();
+			cheated = true;
 		}
 	}
 }
